@@ -132,7 +132,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 <div align="center">
 
-Made with 💀🔥 as part of an AI Engineering portfolio
+By Morad Elnahla🔥
 
 ⭐ Star the repo if you found it useful
 
