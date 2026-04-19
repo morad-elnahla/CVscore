@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CVscore — AI Resume Checker</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:      #05080F;
+  --surface: #0A0F1A;
+  --card:    #0F1622;
+  --card2:   #141D2E;
+  --border:  rgba(255,255,255,0.06);
+  --border2: rgba(255,255,255,0.1);
+  --a1: #00D4FF;
+  --a2: #0070F3;
+  --a3: #7928CA;
+  --green: #00E5A0;
+  --red:   #FF4D6A;
+  --yellow:#FFB547;
+  --text:  #EEF2FF;
+  --muted: #5A6A8A;
+  --muted2:#2A3550;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── noise texture overlay ── */
+body::before{
+  content:'';
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  opacity:0.4;
+}
+
+/* ── ambient blobs ── */
+.blob{position:fixed;border-radius:50%;filter:blur(100px);pointer-events:none;z-index:0;}
+.b1{width:700px;height:700px;top:-300px;left:-200px;background:radial-gradient(circle,rgba(0,112,243,0.12),transparent 70%);}
+.b2{width:600px;height:600px;bottom:-200px;right:-100px;background:radial-gradient(circle,rgba(121,40,202,0.1),transparent 70%);}
+.b3{width:400px;height:400px;top:40%;left:40%;background:radial-gradient(circle,rgba(0,212,255,0.05),transparent 70%);}
+
+/* ── nav ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  height:60px;padding:0 32px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(5,8,15,0.7);
+  backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+}
+.logo{
+  display:flex;align-items:center;gap:10px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:17px;letter-spacing:-0.01em;
+}
+.logo-mark{
+  width:30px;height:30px;border-radius:8px;
+  background:linear-gradient(135deg,var(--a1),var(--a2),var(--a3));
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;
+  box-shadow:0 0 20px rgba(0,212,255,0.3);
+}
+.nav-tag{
+  font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--a1);padding:3px 10px;border-radius:100px;
+  border:1px solid rgba(0,212,255,0.2);background:rgba(0,212,255,0.05);
+}
+
+/* ── hero ── */
+.hero{
+  position:relative;z-index:1;
+  padding:130px 24px 48px;
+  max-width:800px;margin:0 auto;text-align:center;
+}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:10px;
+  font-size:10px;font-weight:600;letter-spacing:0.15em;text-transform:uppercase;
+  color:var(--a1);margin-bottom:28px;
+  opacity:0;animation:up 0.7s 0.1s forwards;
+}
+.eyebrow span{display:block;width:24px;height:1px;background:var(--a1);opacity:0.5;}
+h1{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:clamp(38px,6.5vw,72px);
+  font-weight:800;line-height:1.0;letter-spacing:-0.03em;
+  margin-bottom:20px;
+  opacity:0;animation:up 0.7s 0.2s forwards;
+}
+.grad{
+  background:linear-gradient(90deg,var(--a1) 0%,var(--a2) 40%,var(--a3) 80%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.hero-sub{
+  font-size:16px;color:var(--muted);line-height:1.75;
+  max-width:440px;margin:0 auto 48px;font-weight:300;
+  opacity:0;animation:up 0.7s 0.3s forwards;
+}
+
+/* ── upload card ── */
+.upload-wrap{
+  position:relative;z-index:1;
+  max-width:680px;margin:0 auto;
+  padding:0 20px 80px;
+  opacity:0;animation:up 0.7s 0.4s forwards;
+}
+.main-card{
+  background:var(--card);
+  border:1px solid var(--border2);
+  border-radius:20px;
+  overflow:hidden;
+  box-shadow:0 0 0 1px rgba(255,255,255,0.03),0 32px 64px rgba(0,0,0,0.5);
+  position:relative;
+}
+.main-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--a1),var(--a2),var(--a3),transparent);
+  opacity:0.6;
+}
+.ch{padding:24px 28px 0;display:flex;align-items:center;gap:12px;}
+.ch-icon{
+  width:38px;height:38px;border-radius:10px;font-size:17px;
+  background:linear-gradient(135deg,rgba(0,212,255,0.1),rgba(121,40,202,0.1));
+  border:1px solid rgba(0,212,255,0.15);
+  display:flex;align-items:center;justify-content:center;
+}
+.ch-text h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:700;}
+.ch-text p{font-size:12px;color:var(--muted);margin-top:2px;}
+.cb{padding:20px 28px 28px;display:flex;flex-direction:column;gap:16px;}
+
+/* dropzone */
+.dropzone{
+  position:relative;border:1px dashed var(--muted2);border-radius:14px;
+  padding:36px 20px;text-align:center;cursor:pointer;
+  transition:all 0.25s;background:var(--surface);
+}
+.dropzone:hover,.dropzone.active{border-color:var(--a1);background:rgba(0,212,255,0.03);}
+.dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.dz-icon{
+  width:48px;height:48px;margin:0 auto 14px;border-radius:12px;font-size:20px;
+  background:rgba(0,212,255,0.07);border:1px solid rgba(0,212,255,0.12);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform 0.2s;
+}
+.dropzone:hover .dz-icon{transform:scale(1.08);}
+.dz-t{font-size:13px;font-weight:500;margin-bottom:4px;}
+.dz-t span{color:var(--a1);}
+.dz-h{font-size:11px;color:var(--muted);}
+.dz-fn{margin-top:10px;font-size:12px;color:var(--green);font-weight:500;display:flex;align-items:center;justify-content:center;gap:6px;}
+
+.field{display:flex;flex-direction:column;gap:6px;}
+.flabel{font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);}
+.field input{
+  background:var(--surface);border:1px solid var(--border2);border-radius:10px;
+  color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;
+  padding:12px 14px;outline:none;transition:border-color 0.2s,box-shadow 0.2s;
+}
+.field input:focus{border-color:var(--a1);box-shadow:0 0 0 3px rgba(0,212,255,0.08);}
+.field input::placeholder{color:var(--muted2);}
+
+.btn-go{
+  width:100%;padding:14px;border:none;border-radius:11px;
+  background:linear-gradient(135deg,var(--a2),var(--a3));
+  color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:700;
+  cursor:pointer;transition:transform 0.15s,box-shadow 0.2s,opacity 0.2s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  position:relative;overflow:hidden;
+}
+.btn-go::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);
+  opacity:0;transition:opacity 0.2s;
+}
+.btn-go:hover::after{opacity:1;}
+.btn-go:hover{transform:translateY(-1px);box-shadow:0 12px 32px rgba(0,112,243,0.35);}
+.btn-go:active{transform:translateY(0);}
+.btn-go:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+@media(max-width:480px){.chips{grid-template-columns:1fr;}}
+.chip{
+  background:var(--surface);border:1px solid var(--border);border-radius:9px;
+  padding:10px 12px;display:flex;align-items:center;gap:8px;
+  font-size:11px;color:var(--muted);
+}
+
+.err{
+  background:rgba(255,77,106,0.07);border:1px solid rgba(255,77,106,0.2);
+  border-radius:9px;padding:11px 14px;color:var(--red);font-size:12px;
+  display:none;animation:shake 0.3s;
+}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* ── loading ── */
+#loading{display:none;text-align:center;padding:80px 20px;position:relative;z-index:1;}
+.lring{
+  width:56px;height:56px;margin:0 auto 20px;border-radius:50%;
+  border:2px solid var(--card2);border-top-color:var(--a1);
+  animation:spin 0.85s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lsteps{display:flex;justify-content:center;gap:8px;margin-top:16px;flex-wrap:wrap;}
+.lstep{
+  font-size:11px;background:var(--card);border:1px solid var(--border);
+  border-radius:100px;padding:4px 12px;color:var(--muted);
+  animation:pulse 2s infinite;
+}
+.lstep:nth-child(2){animation-delay:0.35s}.lstep:nth-child(3){animation-delay:0.7s}
+@keyframes pulse{0%,100%{opacity:0.35}50%{opacity:1;border-color:var(--a1);color:var(--a1)}}
+
+/* ── results ── */
+#results{display:none;position:relative;z-index:1;padding-top:80px;}
+.rw{max-width:900px;margin:0 auto;padding:0 20px 80px;}
+
+/* score hero — no outer card, just raw layout */
+.score-hero{
+  display:grid;grid-template-columns:160px 1fr;gap:40px;
+  align-items:center;margin-bottom:20px;padding:40px 0 32px;
+  border-bottom:1px solid var(--border);
+}
+@media(max-width:600px){.score-hero{grid-template-columns:1fr;text-align:center;gap:24px;}}
+
+.ring-wrap{position:relative;width:150px;height:150px;margin:0 auto;}
+.ring-wrap svg{width:100%;height:100%;transform:rotate(-90deg);}
+.ring-wrap circle{fill:none;stroke-width:8;stroke-linecap:round;}
+.rtrack{stroke:var(--card2);}
+.rfill{stroke:url(#rg);transition:stroke-dashoffset 1.6s cubic-bezier(0.4,0,0.2,1);}
+.rc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.rnum{
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:42px;font-weight:800;line-height:1;
+  background:linear-gradient(135deg,var(--a1),var(--a2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.rdenom{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:0.05em;}
+
+.si h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;font-weight:800;letter-spacing:-0.02em;margin-bottom:8px;}
+.vp{
+  display:inline-block;padding:3px 12px;border-radius:100px;
+  font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px;
+}
+.vp-Excellent{background:rgba(0,229,160,0.08);color:var(--green);border:1px solid rgba(0,229,160,0.2);}
+.vp-Good{background:rgba(0,212,255,0.08);color:var(--a1);border:1px solid rgba(0,212,255,0.2);}
+.vp-Needs-Work{background:rgba(255,181,71,0.08);color:var(--yellow);border:1px solid rgba(255,181,71,0.2);}
+.vp-Poor{background:rgba(255,77,106,0.08);color:var(--red);border:1px solid rgba(255,77,106,0.2);}
+.ss{font-size:13px;color:var(--muted);line-height:1.75;font-weight:300;}
+
+.sbars{display:flex;flex-direction:column;gap:8px;margin-top:16px;}
+.sbi{display:flex;align-items:center;gap:12px;}
+.sbl{font-size:10px;color:var(--muted);width:68px;flex-shrink:0;letter-spacing:0.04em;}
+.sbt{flex:1;height:3px;background:var(--card2);border-radius:100px;overflow:hidden;}
+.sbf{height:100%;border-radius:100px;transition:width 1.2s cubic-bezier(0.4,0,0.2,1);}
+.sbv{font-size:10px;font-weight:600;width:26px;text-align:right;color:var(--muted);}
+
+/* result grid */
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0 12px;}
+@media(max-width:600px){.rgrid{grid-template-columns:1fr;}}
+
+.rcard{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;}
+.rch{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.rci{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.rct{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.02em;}
+.rlist{display:flex;flex-direction:column;gap:8px;list-style:none;}
+.rlist li{
+  display:flex;gap:8px;font-size:12px;color:var(--muted);line-height:1.6;
+  padding:8px 10px;border-radius:8px;background:var(--surface);
+  border:1px solid var(--border);align-items:flex-start;
+}
+.li-ic{flex-shrink:0;margin-top:1px;font-size:10px;}
+
+.kcard,.scard{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:12px;}
+.scard .rlist li{background:rgba(0,112,243,0.03);border-color:rgba(0,112,243,0.08);}
+.ktags{display:flex;flex-wrap:wrap;gap:6px;}
+.ktag{
+  font-size:11px;font-weight:500;padding:3px 11px;border-radius:100px;
+  background:rgba(255,77,106,0.06);color:var(--red);border:1px solid rgba(255,77,106,0.15);
+}
+
+.btn-retry{
+  display:block;margin:20px auto 0;
+  background:transparent;border:1px solid var(--border2);
+  color:var(--muted);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;
+  padding:10px 24px;border-radius:10px;cursor:pointer;transition:all 0.2s;
+}
+.btn-retry:hover{border-color:var(--a1);color:var(--a1);}
+
+/* mobile nav fix */
+@media(max-width:480px){
+  nav{padding:0 16px;}
+  .hero{padding:110px 16px 40px;}
+  .upload-wrap{padding:0 16px 60px;}
+  .ch{padding:18px 18px 0;}
+  .cb{padding:16px 18px 20px;}
+  h1{font-size:36px;}
+}
+
+@keyframes up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<div class="blob b1"></div>
+<div class="blob b2"></div>
+<div class="blob b3"></div>
+
+<nav>
+  <div class="logo">
+    <div class="logo-mark">✦</div>
+    CVscore
+  </div>
+  <div class="nav-tag">AI Powered</div>
+</nav>
+
+<div class="hero" id="heroSection">
+  <div class="eyebrow"><span></span>Intelligent Career Analysis<span></span></div>
+  <h1>Is Your CV<br/><span class="grad">Good Enough?</span></h1>
+  <p class="hero-sub">Get a brutally honest AI analysis of your resume against your target role — in seconds.</p>
+</div>
+
+<div class="upload-wrap" id="uploadSection">
+  <div class="main-card">
+    <div class="ch">
+      <div class="ch-icon">📄</div>
+      <div class="ch-text"><h2>Analyze Your CV</h2><p>Upload your resume and enter the role you're targeting</p></div>
+    </div>
+    <div class="cb">
+      <div class="err" id="errorBox"></div>
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="cvFile" accept=".pdf"/>
+        <div class="dz-icon">📋</div>
+        <div class="dz-t"><span>Click to upload</span> or drag & drop</div>
+        <div class="dz-h">PDF only · Max 5MB</div>
+        <div class="dz-fn" id="fileName"></div>
+      </div>
+      <div class="field">
+        <label class="flabel">💼 Target Job Title</label>
+        <input type="text" id="jobTitle" placeholder="e.g. ML Engineer, Data Scientist, Backend Dev"/>
+      </div>
+      <button class="btn-go" onclick="analyze()">✦ &nbsp;Analyze My CV</button>
+      <div class="chips">
+        <div class="chip">📊 Score & Rating</div>
+        <div class="chip">🎯 Gap Analysis</div>
+        <div class="chip">💡 Actionable Tips</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="loading">
+  <div class="lring"></div>
+  <p style="color:var(--muted);font-size:14px;font-weight:300;">Analyzing your CV with AI...</p>
+  <div class="lsteps">
+    <div class="lstep">📄 Reading CV</div>
+    <div class="lstep">🧠 AI Analysis</div>
+    <div class="lstep">📊 Generating Report</div>
+  </div>
+</div>
+
+<div id="results">
+  <div class="rw">
+    <div class="score-hero">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 150 150">
+          <defs>
+            <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#00D4FF"/>
+              <stop offset="100%" stop-color="#7928CA"/>
+            </linearGradient>
+          </defs>
+          <circle class="rtrack" cx="75" cy="75" r="62"/>
+          <circle class="rfill" id="ringFill" cx="75" cy="75" r="62" stroke-dasharray="389.6" stroke-dashoffset="389.6"/>
+        </svg>
+        <div class="rc">
+          <div class="rnum" id="scoreNum">0</div>
+          <div class="rdenom">/ 100</div>
+        </div>
+      </div>
+      <div class="si">
+        <div class="vp" id="verdictPill">—</div>
+        <h2 id="scoreTitle">Analyzing...</h2>
+        <p class="ss" id="summaryText"></p>
+        <div class="sbars">
+          <div class="sbi"><div class="sbl">Relevance</div><div class="sbt"><div class="sbf" id="b1" style="width:0%;background:linear-gradient(90deg,#00D4FF,#0070F3)"></div></div><div class="sbv" id="bv1">—</div></div>
+          <div class="sbi"><div class="sbl">Keywords</div><div class="sbt"><div class="sbf" id="b2" style="width:0%;background:linear-gradient(90deg,#00E5A0,#00D4FF)"></div></div><div class="sbv" id="bv2">—</div></div>
+          <div class="sbi"><div class="sbl">Structure</div><div class="sbt"><div class="sbf" id="b3" style="width:0%;background:linear-gradient(90deg,#7928CA,#0070F3)"></div></div><div class="sbv" id="bv3">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rgrid">
+      <div class="rcard">
+        <div class="rch"><div class="rci" style="background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.15);">✅</div><div class="rct" style="color:var(--green);">Strengths</div></div>
+        <ul class="rlist" id="strengthsList"></ul>
+      </div>
+      <div class="rcard">
+        <div class="rch"><div class="rci" style="background:rgba(255,77,106,0.08);border:1px solid rgba(255,77,106,0.15);">⚠️</div><div class="rct" style="color:var(--red);">Weaknesses</div></div>
+        <ul class="rlist" id="weaknessesList"></ul>
+      </div>
+    </div>
+
+    <div class="scard">
+      <div class="rch"><div class="rci" style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.15);">💡</div><div class="rct" style="color:var(--a1);">How to Improve</div></div>
+      <ul class="rlist" id="suggestionsList"></ul>
+    </div>
+
+    <div class="kcard">
+      <div class="rch"><div class="rci" style="background:rgba(255,77,106,0.08);border:1px solid rgba(255,77,106,0.15);">🔍</div><div class="rct" style="color:var(--red);">Missing Keywords</div></div>
+      <div class="ktags" id="keywordsTags"></div>
+    </div>
+
+    <button class="btn-retry" onclick="reset()">← Analyze Another CV</button>
+  </div>
+</div>
+
+<script>
+document.getElementById('cvFile').addEventListener('change',function(){
+  const n=this.files[0]?.name||'';
+  document.getElementById('fileName').innerHTML=n?`<span>✓</span> ${n}`:'';
+});
+const dz=document.getElementById('dropzone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('active');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('active'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('active');
+  const f=e.dataTransfer.files[0];
+  if(f){document.getElementById('cvFile').files=e.dataTransfer.files;document.getElementById('fileName').innerHTML=`<span>✓</span> ${f.name}`;}
+});
+
+async function analyze(){
+  const file=document.getElementById('cvFile').files[0];
+  const job=document.getElementById('jobTitle').value.trim();
+  if(!file)return showErr('Please upload your CV (PDF)');
+  if(!job)return showErr('Please enter your target job title');
+  hideErr();
+  document.getElementById('heroSection').style.display='none';
+  document.getElementById('uploadSection').style.display='none';
+  document.getElementById('loading').style.display='block';
+  const fd=new FormData();
+  fd.append('cv_file',file);fd.append('job_title',job);
+  try{
+    const res=await fetch('/analyze',{method:'POST',body:fd});
+    const data=await res.json();
+    if(data.error)throw new Error(data.error);
+    document.getElementById('loading').style.display='none';
+    renderResults(data);
+  }catch(err){
+    document.getElementById('loading').style.display='none';
+    document.getElementById('heroSection').style.display='block';
+    document.getElementById('uploadSection').style.display='block';
+    showErr(err.message||'Something went wrong.');
+  }
+}
+
+function renderResults(data){
+  const score=data.score||0;
+  const circ=389.6;
+  setTimeout(()=>{document.getElementById('ringFill').style.strokeDashoffset=circ-(score/100)*circ;},100);
+  let cur=0;const tick=()=>{cur=Math.min(cur+2,score);document.getElementById('scoreNum').textContent=cur;if(cur<score)requestAnimationFrame(tick);};requestAnimationFrame(tick);
+  const v=data.verdict||'Good';
+  const vp=document.getElementById('verdictPill');
+  vp.textContent=v;vp.className=`vp vp-${v.replace(' ','-')}`;
+  const titles={'Excellent':'Outstanding CV!','Good':'Strong CV','Needs Work':'Needs Some Work','Poor':'Needs Major Work'};
+  document.getElementById('scoreTitle').textContent=titles[v]||'Analysis Complete';
+  document.getElementById('summaryText').textContent=data.summary||'';
+  const rel=data.relevance_score||score;
+  const kw=data.keywords_score||score;
+  const str=data.structure_score||score;
+  setTimeout(()=>{
+    [[rel,'b1','bv1'],[kw,'b2','bv2'],[str,'b3','bv3']].forEach(([v,b,bv])=>{
+      document.getElementById(b).style.width=v+'%';
+      document.getElementById(bv).textContent=v;
+    });
+  },300);
+  const ml=(id,items,icon)=>{document.getElementById(id).innerHTML=items.map(i=>`<li><span class="li-ic">${icon}</span>${i}</li>`).join('');};
+  ml('strengthsList',data.strengths||[],'✓');
+  ml('weaknessesList',data.weaknesses||[],'✗');
+  ml('suggestionsList',data.suggestions||[],'→');
+  document.getElementById('keywordsTags').innerHTML=(data.missing_keywords||[]).map(k=>`<span class="ktag">${k}</span>`).join('');
+  document.getElementById('results').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function reset(){
+  document.getElementById('results').style.display='none';
+  document.getElementById('heroSection').style.display='block';
+  document.getElementById('uploadSection').style.display='block';
+  document.getElementById('cvFile').value='';
+  document.getElementById('fileName').textContent='';
+  document.getElementById('jobTitle').value='';
+}
+
+function showErr(m){const b=document.getElementById('errorBox');b.textContent='⚠ '+m;b.style.display='block';}
+function hideErr(){document.getElementById('errorBox').style.display='none';}
+</script>
+</body>
+</html>
