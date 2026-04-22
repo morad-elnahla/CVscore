@@ -7,6 +7,9 @@
 
 ![Results](images/1.png)
 
+## 🌐 Live Demo  👉 **[https://huggingface.co/spaces/morad-elna7la/smartprice-engine](https://huggingface.co/spaces/morad-elna7la/smartprice-engine)**
+
+
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Groq](https://img.shields.io/badge/Groq-LLaMA%203.3%2070B-F55036?style=flat)](https://groq.com)
